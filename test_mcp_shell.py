@@ -7,7 +7,7 @@ connections:
 
   session authorization, per-command approval, command refusal, session
   refusal, credential-less HTTP reachability, no-tty fail-closed (with
-  session auth on and off), deny-list, no-shell literal metacharacters,
+  session auth on and off), no-shell literal metacharacters,
   missing executable, bad cwd, cwd, environment inheritance and stripping,
   MCP_SHELL_ENV restriction, timeout kill, usage error on an unknown run
   mode.
@@ -261,7 +261,7 @@ async def daemon_call_tool(
     outcome = await wait_prompt_or_call("Authorize this session")
     if outcome == "call":
         # Call finished before any session prompt: session auth off, or a
-        # fast failure (deny-list, missing terminal).
+        # fast failure (missing terminal).
         return _task_result(task, label)
     if outcome == "none":
         task.cancel()
@@ -456,18 +456,11 @@ async def main() -> None:
         proc.terminate()
         await proc.wait()
 
-    # --- daemon: defense-in-depth and execution checks ----------------------
+    # --- daemon: execution checks -------------------------------------------
     port = _free_port()
     daemon = Daemon(port)
     await daemon_start_and_wait(daemon)
     try:
-        ok, text = await daemon_call_tool(daemon, ["sudo", "ls"], label="deny-list")
-        check(
-            "daemon/deny-list: sudo refused without prompting",
-            (not ok) and "server policy" in text,
-            text[:200],
-        )
-
         ok, text = await daemon_call_tool(daemon, ["echo", "a;rm -rf /"], label="no-shell")
         check(
             "daemon/no-shell: metacharacters are literal",

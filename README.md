@@ -144,11 +144,8 @@ Returns `command` (shell-quoted display), `exit_code`, `stdout`, `stderr`,
 - **No shell by construction.** Commands are argv arrays; no string
   interpolation, so `;`, `&&`, backticks, and `$()` are literal text.
   Test: `["echo", "a;rm -rf /"]` prints `a;rm -rf /`.
-- **Deny list is defense-in-depth, not the boundary.** `argv[0]`'s basename
-  is checked against a short list (`sudo`, `su`, `doas`, `pkexec`,
-  `sudoedit`, `nmap`, `masscan`, `hydra`, `john`, `hashcat`). The
-  confirmation gate is the actual boundary. Edit `_DENIED_EXECUTABLES` to
-  taste.
+- **No executable deny list.** Every command is judged solely at the
+  terminal, so the prompt is the full picture of what will run.
 - **Timeout with process-group kill.** Over-timeout commands are SIGKILLed
   as a group (`start_new_session=True`), so children cannot outlive the
   call. `exit_code` is `-9`, `timed_out` is `true`.
@@ -188,7 +185,7 @@ daemon genuinely owns a controlling terminal):
 - usage error for an unknown run mode
 - daemon: session authorize/approve, fresh-session re-authorization,
   command refusal, session refusal, credential-less HTTP reachability,
-  no-tty fail-closed (session auth on and off), deny-list, no-shell literal
+  no-tty fail-closed (session auth on and off), no-shell literal
   metacharacters, missing executable, bad cwd, cwd, environment inheritance
   + `MCP_SHELL_*` stripping, `MCP_SHELL_ENV` restriction, timeout kill
 

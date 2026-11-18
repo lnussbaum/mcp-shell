@@ -18,9 +18,7 @@ terminal.
   first tools/call (MCP_SHELL_SESSION_AUTH=0 disables it).
 
 Commands are argv lists run without a shell: no string interpolation, no
-pipes, no shell syntax, so metacharacters in arguments are literal text. A
-short deny-list of executable names is defense in depth on top of the
-confirmation gate, not a substitute for it.
+pipes, no shell syntax, so metacharacters in arguments are literal text.
 
 Security notes:
 
@@ -41,7 +39,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import posixpath
 import re
 import shlex
 import signal
@@ -114,42 +111,9 @@ ENV_RESTRICT: frozenset[str] | None = (
     else None
 )
 
-# ---------------------------------------------------------------------------
-# Defense-in-depth deny list (not the security boundary — confirmation is)
-# ---------------------------------------------------------------------------
-
-# Matched against argv[0] only, by executable basename. These are the
-# "never makes sense from an agent" executables: privilege escalation and
-# network/credential cracking tools. Everything else relies on the
-# confirmation gate. Keep this list short; long blocklists produce false
-# positives on legitimate literal arguments (e.g. `echo 'a;rm -rf /'`).
-_DENIED_EXECUTABLES: frozenset[str] = frozenset(
-    {
-        "sudo",
-        "su",
-        "doas",
-        "pkexec",
-        "sudoedit",
-        "nmap",
-        "masscan",
-        "hydra",
-        "john",
-        "hashcat",
-    }
-)
-
-
 def _argv_to_string(argv: list[str]) -> str:
     """Render argv as a shell-quoted string for display in confirmations."""
     return " ".join(shlex.quote(a) for a in argv)
-
-
-def _deny_listed(argv: list[str]) -> str | None:
-    """Return a reason string when argv matches a defense-in-depth deny rule."""
-    basename = posixpath.basename(argv[0])
-    if basename in _DENIED_EXECUTABLES:
-        return f"executable {basename!r} is blocked by server policy"
-    return None
 
 
 def _build_env() -> dict[str, str]:
@@ -559,10 +523,6 @@ async def run_command(
 
     if not argv or not all(isinstance(a, str) and a for a in argv):
         raise ToolError("argv must be a non-empty list of non-empty strings.")
-
-    reason = _deny_listed(argv)
-    if reason:
-        raise ToolError(f"Command refused by server policy: {reason}")
 
     # Per-session authorization (daemon mode): the session's first tools/call
     # triggers ONE terminal prompt. Decided here, inside the tool, because the
